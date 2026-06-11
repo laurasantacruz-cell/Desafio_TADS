@@ -1,5 +1,9 @@
 from fastapi import FastAPI
 from app.routes.usuarios import router
+from app.database.database import engine
+from app.models.usuario import Usuario, Base
+
+Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
     title="FACOFFEE User Service",
