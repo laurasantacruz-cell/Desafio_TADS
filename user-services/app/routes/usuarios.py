@@ -5,10 +5,11 @@ from datetime import datetime, timezone
 from app.schemas.usuario import UsuarioCriacao, UsuarioAtualizacao, UsuarioRoles
 from app.database.database import get_db
 from app.models.usuario import Usuario
+from app.auth import get_current_user, require_manager
 
 router = APIRouter(
     prefix="/users",
-    tags=["Usuários"]
+    tags=["Usuarios"]
 )
 
 ROLES_VALIDOS = {"MANAGER", "PARTICIPANT"}
@@ -27,27 +28,19 @@ def usuario_para_dict(u: Usuario) -> dict:
     }
 
 
-@router.get("/")
-def listar_usuarios(db: Session = Depends(get_db)):
-    usuarios = db.query(Usuario).all()
-    return [usuario_para_dict(u) for u in usuarios]
-
-
+# POST /users — publico, sem autenticacao
 @router.post("/", status_code=201)
 def criar_usuario(usuario: UsuarioCriacao, db: Session = Depends(get_db)):
 
-    # Verifica e-mail duplicado
     if db.query(Usuario).filter(Usuario.email == usuario.email).first():
-        raise HTTPException(status_code=409, detail="Email já cadastrado")
+        raise HTTPException(status_code=409, detail="Email ja cadastrado")
 
-    # Roles padrão
     roles = usuario.roles if usuario.roles else ["PARTICIPANT"]
 
-    # Valida roles
     for role in roles:
         if role not in ROLES_VALIDOS:
             raise HTTPException(
-                status_code=400, detail=f"Role inválido: {role}. Use MANAGER ou PARTICIPANT.")
+                status_code=400, detail=f"Role invalido: {role}. Use MANAGER ou PARTICIPANT.")
 
     novo = Usuario(
         nome=usuario.nome,
@@ -61,24 +54,45 @@ def criar_usuario(usuario: UsuarioCriacao, db: Session = Depends(get_db)):
     return usuario_para_dict(novo)
 
 
+# GET /users — somente MANAGER
+@router.get("/")
+def listar_usuarios(
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    require_manager(current_user)
+    usuarios = db.query(Usuario).all()
+    return [usuario_para_dict(u) for u in usuarios]
+
+
+# GET /users/{id} — qualquer usuario autenticado
 @router.get("/{usuario_id}")
-def buscar_usuario(usuario_id: str, db: Session = Depends(get_db)):
+def buscar_usuario(
+    usuario_id: str,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
     usuario = db.query(Usuario).filter(Usuario.id == usuario_id).first()
     if not usuario:
-        raise HTTPException(status_code=404, detail="Usuário não encontrado")
+        raise HTTPException(status_code=404, detail="Usuario nao encontrado")
     return usuario_para_dict(usuario)
 
 
+# PATCH /users/{id} — usuario autenticado (si mesmo ou MANAGER)
 @router.patch("/{usuario_id}")
-def atualizar_usuario(usuario_id: str, dados: UsuarioAtualizacao, db: Session = Depends(get_db)):
+def atualizar_usuario(
+    usuario_id: str,
+    dados: UsuarioAtualizacao,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
     usuario = db.query(Usuario).filter(Usuario.id == usuario_id).first()
     if not usuario:
-        raise HTTPException(status_code=404, detail="Usuário não encontrado")
+        raise HTTPException(status_code=404, detail="Usuario nao encontrado")
 
-    # Impede edição de usuário inativo
     if usuario.status == "INACTIVE":
         raise HTTPException(
-            status_code=409, detail="Não é possível editar um usuário inativo.")
+            status_code=409, detail="Nao e possivel editar um usuario inativo.")
 
     if dados.nome is not None:
         if len(dados.nome.strip()) < 3:
@@ -91,7 +105,7 @@ def atualizar_usuario(usuario_id: str, dados: UsuarioAtualizacao, db: Session = 
             Usuario.email == dados.email, Usuario.id != usuario_id).first()
         if duplicado:
             raise HTTPException(
-                status_code=409, detail="Email já cadastrado por outro usuário.")
+                status_code=409, detail="Email ja cadastrado por outro usuario.")
         usuario.email = dados.email
 
     usuario.updated_at = datetime.now(timezone.utc)
@@ -100,15 +114,19 @@ def atualizar_usuario(usuario_id: str, dados: UsuarioAtualizacao, db: Session = 
     return usuario_para_dict(usuario)
 
 
+# DELETE /users/{id} — usuario autenticado
 @router.delete("/{usuario_id}")
-def desativar_usuario(usuario_id: str, db: Session = Depends(get_db)):
+def desativar_usuario(
+    usuario_id: str,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
     usuario = db.query(Usuario).filter(Usuario.id == usuario_id).first()
     if not usuario:
-        raise HTTPException(status_code=404, detail="Usuário não encontrado")
+        raise HTTPException(status_code=404, detail="Usuario nao encontrado")
 
-    # Impede dupla desativação
     if usuario.status == "INACTIVE":
-        raise HTTPException(status_code=409, detail="Usuário já está inativo.")
+        raise HTTPException(status_code=409, detail="Usuario ja esta inativo.")
 
     now = datetime.now(timezone.utc)
     usuario.status = "INACTIVE"
@@ -119,20 +137,28 @@ def desativar_usuario(usuario_id: str, db: Session = Depends(get_db)):
     return usuario_para_dict(usuario)
 
 
+# PUT /users/{id}/roles — somente MANAGER
 @router.put("/{usuario_id}/roles")
-def alterar_roles(usuario_id: str, dados: UsuarioRoles, db: Session = Depends(get_db)):
+def alterar_roles(
+    usuario_id: str,
+    dados: UsuarioRoles,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    require_manager(current_user)
+
     usuario = db.query(Usuario).filter(Usuario.id == usuario_id).first()
     if not usuario:
-        raise HTTPException(status_code=404, detail="Usuário não encontrado")
+        raise HTTPException(status_code=404, detail="Usuario nao encontrado")
 
     if usuario.status == "INACTIVE":
         raise HTTPException(
-            status_code=409, detail="Não é possível alterar roles de um usuário inativo.")
+            status_code=409, detail="Nao e possivel alterar roles de um usuario inativo.")
 
     for role in dados.roles:
         if role not in ROLES_VALIDOS:
             raise HTTPException(
-                status_code=400, detail=f"Role inválido: {role}. Use MANAGER ou PARTICIPANT.")
+                status_code=400, detail=f"Role invalido: {role}. Use MANAGER ou PARTICIPANT.")
 
     usuario.roles = ",".join(dados.roles)
     usuario.updated_at = datetime.now(timezone.utc)
