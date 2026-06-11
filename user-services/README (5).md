@@ -1,0 +1,103 @@
+# FACOFFEE — Users Service
+
+Serviço responsável pelo gerenciamento de usuários da aplicação FACOFFEE.
+
+## Tecnologias
+
+- Python 3.11+
+- FastAPI
+- Pydantic
+
+## Pré-requisitos
+
+- Python instalado
+- Docker e Docker Compose (para subir a infraestrutura)
+
+## Instalação e execução
+
+### 1. Clone o repositório e entre na pasta
+
+```bash
+cd users-service
+```
+
+### 2. Crie e ative o ambiente virtual
+
+```bash
+python -m venv venv
+
+# Windows
+venv\Scripts\activate
+
+# Linux/Mac
+source venv/bin/activate
+```
+
+### 3. Instale as dependências
+
+```bash
+pip install fastapi uvicorn pydantic[email] pytest httpx
+```
+
+### 4. Suba a infraestrutura (na raiz do projeto FACOFFEE)
+
+```bash
+docker compose up -d
+```
+
+### 5. Inicie o serviço
+
+```bash
+uvicorn main:app --reload --port 8001
+```
+
+A API estará disponível em: http://localhost:8001
+
+Documentação interativa: http://localhost:8001/docs
+
+---
+
+## Endpoints
+
+| Método | Rota | Descrição | Autenticação |
+|--------|------|-----------|--------------|
+| POST | `/users/` | Criar usuário | Pública |
+| GET | `/users/` | Listar usuários | MANAGER |
+| GET | `/users/{id}` | Buscar por ID | Autenticado |
+| PATCH | `/users/{id}` | Atualizar dados | Autenticado |
+| DELETE | `/users/{id}` | Desativar usuário | Autenticado |
+| PUT | `/users/{id}/roles` | Alterar roles | MANAGER |
+
+---
+
+## Regras de negócio
+
+- E-mail deve ser único
+- Usuário criado inicia com status `ACTIVE` e role `PARTICIPANT`
+- Usuário inativo não pode ser editado, desativado novamente ou ter roles alterados
+- Apenas `MANAGER` pode listar todos os usuários e alterar roles
+- Roles válidos: `MANAGER`, `PARTICIPANT`
+
+---
+
+## Executando os testes
+
+```bash
+pytest tests_usuarios.py -v
+```
+
+---
+
+## Estrutura do projeto
+
+```
+users-service/
+├── main.py                  # Inicialização da aplicação FastAPI
+├── app/
+│   ├── routes/
+│   │   └── usuarios.py      # Endpoints do serviço
+│   └── schemas/
+│       └── usuario.py       # Schemas Pydantic (validação de dados)
+├── tests_usuarios.py        # Testes automatizados
+└── README.md
+```
