@@ -11,14 +11,13 @@ def get_current_user(authorization: Optional[str] = Header(default=None)):
     token = authorization.replace("Bearer ", "")
 
     try:
-        # O Nginx ja valida a assinatura, aqui so lemos o payload
-        payload = jwt.decode(token, options={"verify_signature": False})
+        payload = jwt.decode(token, key="", options={
+                             "verify_signature": False, "verify_exp": False})
 
         user_id = payload.get("sub")
         if not user_id:
             raise HTTPException(status_code=401, detail="Token invalido.")
 
-        # Tenta pegar roles de dois lugares possiveis no token do Keycloak
         roles = payload.get("roles", [])
         if not roles:
             roles = payload.get("realm_access", {}).get("roles", [])
