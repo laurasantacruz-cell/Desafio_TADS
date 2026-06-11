@@ -89,6 +89,13 @@ pytest tests/tests_usuario.py -v
 
 ---
 
+## Limitações conhecidas
+
+- Integração com Keycloak não implementada — o serviço valida o JWT e as roles localmente, mas não cria o usuário no Keycloak ao cadastrar
+- Integração com RabbitMQ não implementada — o evento `UserDeactivated` não é publicado ao desativar um usuário
+
+---
+
 ## Estrutura do projeto
 
 ```
