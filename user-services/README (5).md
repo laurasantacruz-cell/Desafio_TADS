@@ -4,9 +4,10 @@ Serviço responsável pelo gerenciamento de usuários da aplicação FACOFFEE.
 
 ## Tecnologias
 
-- Python 3.11+
+- Python 3.13+
 - FastAPI
 - Pydantic
+- SQLAlchemy + SQLite
 
 ## Pré-requisitos
 
@@ -15,10 +16,10 @@ Serviço responsável pelo gerenciamento de usuários da aplicação FACOFFEE.
 
 ## Instalação e execução
 
-### 1. Clone o repositório e entre na pasta
+### 1. Entre na pasta do serviço
 
 ```bash
-cd users-service
+cd user-services
 ```
 
 ### 2. Crie e ative o ambiente virtual
@@ -36,7 +37,7 @@ source venv/bin/activate
 ### 3. Instale as dependências
 
 ```bash
-pip install fastapi uvicorn pydantic[email] pytest httpx
+pip install fastapi uvicorn pydantic[email] sqlalchemy pytest httpx
 ```
 
 ### 4. Suba a infraestrutura (na raiz do projeto FACOFFEE)
@@ -48,7 +49,7 @@ docker compose up -d
 ### 5. Inicie o serviço
 
 ```bash
-uvicorn main:app --reload --port 8001
+uvicorn app.main:app --reload --port 8001
 ```
 
 A API estará disponível em: http://localhost:8001
@@ -83,7 +84,7 @@ Documentação interativa: http://localhost:8001/docs
 ## Executando os testes
 
 ```bash
-pytest tests_usuarios.py -v
+pytest tests/tests_usuario.py -v
 ```
 
 ---
@@ -91,13 +92,18 @@ pytest tests_usuarios.py -v
 ## Estrutura do projeto
 
 ```
-users-service/
-├── main.py                  # Inicialização da aplicação FastAPI
+user-services/
 ├── app/
+│   ├── database/
+│   │   └── database.py      # Configuração do banco de dados SQLite
+│   ├── models/
+│   │   └── usuario.py       # Model SQLAlchemy
 │   ├── routes/
 │   │   └── usuarios.py      # Endpoints do serviço
-│   └── schemas/
-│       └── usuario.py       # Schemas Pydantic (validação de dados)
-├── tests_usuarios.py        # Testes automatizados
+│   ├── schemas/
+│   │   └── usuario.py       # Schemas Pydantic (validação de dados)
+│   └── main.py              # Inicialização da aplicação FastAPI
+├── tests/
+│   └── tests_usuario.py     # Testes automatizados (19 testes)
 └── README.md
 ```
